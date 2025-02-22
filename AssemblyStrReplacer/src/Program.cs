@@ -76,12 +76,12 @@ namespace AssemblyStringReplacerApp
                     int count = 0;
                     foreach (var record in records)
                     {
-                        // 仅当 Translation 去除空白后非空时加入翻译字典
-                        if (!string.IsNullOrWhiteSpace(record.Translation))
+                        // 检查翻译内容去除空白后是否非空，但保留原始内容（包括末尾的换行符）
+                        if (record.Translation != null && record.Translation.Trim().Length > 0)
                         {
                             if (!Translations.ContainsKey(record.Key))
                             {
-                                Translations.Add(record.Key, record.Translation.Trim());
+                                Translations.Add(record.Key, record.Translation);
                                 count++;
                             }
                         }
