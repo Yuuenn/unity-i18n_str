@@ -13,7 +13,7 @@ public class ExtractedString {
     public string Key { get; set; } = string.Empty;
     public string OriginalText { get; set; } = string.Empty;
     public string Context { get; set; } = string.Empty;
-    // 修改后的属性：默认认为翻译内容不需要额外标记，只有特殊内容才标记为需要
+    // 默认情况下，从 ldstr 指令提取的字符串不需要额外标记，只有特殊内容才需要标记
     public bool NeedsLabel { get; set; }
     public List<string> Labels { get; set; } = new List<string>();
 }
@@ -39,17 +39,28 @@ public class RegexRule {
 class Program {
     static void Main(string[] args) {
         string dllPath = null;
-        // 查找参数 "-dll" 后面的路径
+        string jsonPath = "regex_base64.json"; // 默认 JSON 文件名
+        bool enableOngeki = false;             // 是否启用“Scene\d+IDEnum”匹配
+
+        // 遍历命令行参数
         for (int i = 0; i < args.Length; i++) {
             if (args[i].Equals("-dll", StringComparison.OrdinalIgnoreCase)) {
                 if (i + 1 < args.Length) {
                     dllPath = args[i + 1];
                 }
-                break;
+            }
+            else if (args[i].Equals("-json", StringComparison.OrdinalIgnoreCase)) {
+                if (i + 1 < args.Length) {
+                    jsonPath = args[i + 1];
+                }
+            }
+            else if (args[i].Equals("-ongeki", StringComparison.OrdinalIgnoreCase)) {
+                enableOngeki = true;
             }
         }
+
         if (string.IsNullOrEmpty(dllPath)) {
-            Console.WriteLine("Usage: ExtractStrings -dll <path_to_Assembly-CSharp.dll>");
+            Console.WriteLine("Usage: ExtractStrings -dll <path_to_Assembly-CSharp.dll> [-json <path_to_regex_json>] [-ongeki]");
             return;
         }
         
@@ -58,11 +69,23 @@ class Program {
 
         // 保存常规提取的字符串（键值去重）
         Dictionary<string, ExtractedString> extractedStrings = new Dictionary<string, ExtractedString>();
-        // 保存用于字符串比较的字符串
+        // 保存用于字符串比较的字符串（更科学的名称：comparisonStrings）
         Dictionary<string, ExtractedString> comparisonStrings = new Dictionary<string, ExtractedString>();
+
+        // 如果开启了 -ongeki 参数，就准备一个正则表达式，用来匹配 Scene\d+IDEnum
+        Regex sceneEnumRegex = null;
+        if (enableOngeki) {
+            sceneEnumRegex = new Regex(@"^Scene\d+IDEnum$", RegexOptions.Compiled);
+        }
 
         // 遍历所有类型和方法
         foreach (var type in module.Types) {
+            bool isSceneEnum = false;
+            if (enableOngeki && sceneEnumRegex != null) {
+                // 检查类型名是否匹配 Scene\d+IDEnum
+                isSceneEnum = sceneEnumRegex.IsMatch(type.Name);
+            }
+
             foreach (var method in type.Methods) {
                 if (!method.HasBody || method.Body?.Instructions == null)
                     continue;
@@ -75,14 +98,21 @@ class Program {
                         string context = method.FullName;
                         string key = GenerateKey(context, text);
                         if (!extractedStrings.ContainsKey(key)) {
-                            // 默认情况下，翻译文本不需要额外标记
+                            // 默认情况下，不需要额外标记
                             bool needsLabel = false;
-                            extractedStrings.Add(key, new ExtractedString {
+                            var newRecord = new ExtractedString {
                                 Key = key,
                                 OriginalText = text,
                                 Context = context,
                                 NeedsLabel = needsLabel
-                            });
+                            };
+
+                            // 如果是 -ongeki 模式，并且类型名匹配 scene\d+IDEnum，就加上标签
+                            if (isSceneEnum) {
+                                newRecord.Labels.Add("from_scene_idenum");
+                            }
+
+                            extractedStrings.Add(key, newRecord);
                         }
                     }
                     
@@ -104,7 +134,7 @@ class Program {
                                             Key = cmpKey,
                                             OriginalText = cmpText,
                                             Context = cmpContext,
-                                            // 对于用于比较的字符串，需要额外标记以便后续特殊处理
+                                            // 对于用于比较的字符串，需要额外标记
                                             NeedsLabel = true
                                         });
                                     }
@@ -116,23 +146,36 @@ class Program {
             }
         }
 
-        // 合并两组记录（注意它们的 Key 通常不同）
+        // 合并所有记录
         List<ExtractedString> allRecords = extractedStrings.Values
             .Concat(comparisonStrings.Values)
             .ToList();
 
+        // 去重时打印日志，输出重复的 Key 及重复记录的 Context 信息
+        Dictionary<string, ExtractedString> uniqueRecords = new Dictionary<string, ExtractedString>();
+        foreach (var record in allRecords) {
+            if (uniqueRecords.ContainsKey(record.Key)) {
+                Console.WriteLine($"去重：发现重复 Key: {record.Key}. 原始 Context: {uniqueRecords[record.Key].Context}，重复 Context: {record.Context}");
+            } else {
+                uniqueRecords.Add(record.Key, record);
+            }
+        }
+        List<ExtractedString> finalRecords = uniqueRecords.Values.ToList();
+
         // 生成 CSV 文件
-        WriteCsv("sddt_0.00_la_Assembly-CSharp.csv", allRecords, comparisonStrings);
+        WriteCsv("sddt_0.00_la_Assembly-CSharp.csv", finalRecords, comparisonStrings, jsonPath);
     }
 
-    // 写入 CSV 文件的方法
-    static void WriteCsv(string fileName, List<ExtractedString> records, Dictionary<string, ExtractedString> comparisonDict) {
+    // 写入 CSV 文件的方法，增加参数 jsonPath 用于加载外部 JSON 文件
+    static void WriteCsv(string fileName, List<ExtractedString> records, Dictionary<string, ExtractedString> comparisonDict, string jsonPath) {
         try {
             // 加载外部 JSON 中配置的正则规则
             List<RegexRule> regexRules = new List<RegexRule>();
-            if (File.Exists("regex_base64.json")) {
-                string json = File.ReadAllText("regex_base64.json");
+            if (File.Exists(jsonPath)) {
+                string json = File.ReadAllText(jsonPath);
                 regexRules = JsonSerializer.Deserialize<List<RegexRule>>(json) ?? new List<RegexRule>();
+            } else {
+                Console.WriteLine($"未找到正则规则文件: {jsonPath}");
             }
 
             StringBuilder sb = new StringBuilder();
@@ -141,7 +184,7 @@ class Program {
             foreach (var record in records) {
                 // 默认翻译内容为空
                 string translation = "";
-                List<string> labels = new List<string>();
+                List<string> labels = new List<string>(record.Labels);
 
                 // 如果该字符串用于比较，则标记 compare_str
                 if (comparisonDict.ContainsKey(record.Key)) {
