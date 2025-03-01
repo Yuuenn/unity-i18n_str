@@ -23,14 +23,14 @@ public class RegexRule {
     public string regex_base64 { get; set; } = string.Empty;
     public string description { get; set; } = string.Empty;
     // 编译后的正则表达式
-    public Regex? CompiledRegex {
+    public Regex CompiledRegex {
         get {
             try {
                 string pattern = Encoding.UTF8.GetString(Convert.FromBase64String(regex_base64));
                 return new Regex(pattern);
             }
             catch {
-                return null;
+                return null; // 返回 null 表示编译失败
             }
         }
     }
@@ -193,7 +193,7 @@ class Program {
 
                 // 应用所有外部 JSON 中配置的正则规则
                 foreach (var rule in regexRules) {
-                    var compiled = rule.CompiledRegex;
+                    Regex compiled = rule.CompiledRegex;
                     if (compiled != null && compiled.IsMatch(record.OriginalText)) {
                         if (!labels.Contains(rule.label))
                             labels.Add(rule.label);
