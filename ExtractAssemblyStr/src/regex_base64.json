@@ -1,0 +1,44 @@
+[
+    {
+        "label": "ogk_story",
+        "active": true,
+        "regex_base64": "Xig/Oi8vKS4q",
+        "description": "音击剧情人物立绘"
+    },
+    {
+        "label": "only_newline",
+        "active": true,
+        "regex_base64": "XltcblxyXSsk",
+        "description": "只有换行符"
+    },
+    {
+        "label": "only_space",
+        "active": true,
+        "regex_base64": "XltcdTMwMDBcdTIwMDNcdTAwMjBcdTIwMDJdKyQ=",
+        "description": "只有空格"
+    },
+    {
+        "label": "alpha_number_no_space",
+        "active": true,
+        "regex_base64": "Xig/PS4qXGQpW0EtWmEtelxkXSsk",
+        "description": "数字字母参数"
+    },
+    {
+        "label": "underscore_hyphen",
+        "active": true,
+        "regex_base64": "Xig/PS4qXGQpKD89LipbXy1dKVtBLVphLXpcZF8tXSsk",
+        "description": "下划线连字符参数"
+    },
+    {
+        "label": "only_number",
+        "active": true,
+        "regex_base64": "Xi0/XGQrKFwuXGQrKT8k",
+        "description": "数字和浮点数"
+    },
+    {
+        "label": "only_symbol",
+        "active": true,
+        "regex_base64": "Xig/OltcdUZGMjEtXHVGRjNBXHVGRjQxLVx1RkY1QV18XHB7UH18W1x1MDAyMFx1MzAwMF0pKyQ=",
+        "description": "全角字母、符号、空格"
+    }
+]
