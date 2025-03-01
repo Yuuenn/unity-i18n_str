@@ -1,44 +1,87 @@
 [
     {
-        "label": "ogk_story",
-        "active": true,
-        "regex_base64": "Xig/Oi8vKS4q",
-        "description": "音击剧情人物立绘"
-    },
-    {
         "label": "only_newline",
-        "active": true,
         "regex_base64": "XltcblxyXSsk",
-        "description": "只有换行符"
+        "description": "仅换行符的行：匹配只包含换行符（\\n 和 \\r）的行，正则：^[\\n\\r]+$"
     },
     {
-        "label": "only_space",
-        "active": true,
+        "label": "only_spaces",
         "regex_base64": "XltcdTMwMDBcdTIwMDNcdTAwMjBcdTIwMDJdKyQ=",
-        "description": "只有空格"
+        "description": "仅空白行：匹配只包含各种空白字符（如全角、半角空格）的行，正则：^[\\u3000\\u2003\\u0020\\u2002]+$"
     },
     {
-        "label": "alpha_number_no_space",
-        "active": true,
-        "regex_base64": "Xig/PS4qXGQpW0EtWmEtelxkXSsk",
-        "description": "数字字母参数"
+        "label": "empty_string",
+        "regex_base64": "XiQ=",
+        "description": "空字符串：匹配完全为空的字符串，正则：^$"
     },
     {
-        "label": "underscore_hyphen",
-        "active": true,
-        "regex_base64": "Xig/PS4qXGQpKD89LipbXy1dKVtBLVphLXpcZF8tXSsk",
-        "description": "下划线连字符参数"
+        "label": "comment_line",
+        "regex_base64": "Xig/Oi8vKS4q",
+        "description": "注释行：匹配以 // 开头的注释行，正则：^(?://).*"
     },
     {
-        "label": "only_number",
-        "active": true,
+        "label": "number",
         "regex_base64": "Xi0/XGQrKFwuXGQrKT8k",
-        "description": "数字和浮点数"
+        "description": "数值：匹配整数或小数（可带负号），正则：^-?\\d+(\\.\\d+)?$"
     },
     {
-        "label": "only_symbol",
-        "active": true,
+        "label": "alphanumeric_with_digit",
+        "regex_base64": "Xig/PS4qXGQpW0EtWmEtelxkXSsk",
+        "description": "字母数字组合：仅由英文字母和数字组成，且必须包含数字，正则：^(?=.*\\d)[A-Za-z\\d]+$"
+    },
+    {
+        "label": "alphanumeric_with_digit_and_symbol",
+        "regex_base64": "Xig/PS4qXGQpKD89LipbXy1dKVtBLVphLXpcZF8tXSsk",
+        "description": "字母数字加符号组合：必须包含数字和下划线或连字符，正则：^(?=.*\\d)(?=.*[_-])[A-Za-z\\d_-]+$"
+    },
+    {
+        "label": "number_and_ascii_punctuation",
+        "regex_base64": "Xig/PS4qXGQpKD89LipbISIjJCUmJygpKissXC0uLzo7PD0+P0BcW1xdXFxeX3t8fX5dKVswLTkhIiMkJSYnKCkqKywtLi86Ozw9Pj9AXF5fe3x9fl0rJA==",
+        "description": "数字与ASCII标点：只允许数字和常用ASCII标点符号，且各至少出现一次，正则：^(?=.*\\d)(?=.*[!\"#$%&'()*+,\\-./:;<=>?@\\[\\]^_`{|}~])[0-9!\"#$%&'()*+,\\-./:;<=>?@\\[\\]^_`{|}~]+$"
+    },
+    {
+        "label": "single_word",
+        "regex_base64": "XlxzKltBLVphLXpdK1xzKiQ=",
+        "description": "单个英文单词：仅由英文字母构成，允许首尾空格，正则：^\\s*[A-Za-z]+\\s*$"
+    },
+    {
+        "label": "word_with_min_two_uppercase",
+        "regex_base64": "Xig/PSg/Oi4qW0EtWl0pezIsfSlbQS1aYS16XSsk",
+        "description": "至少包含两个大写字母的单词：只允许英文字母，不含空格或非英文字符，正则：^(?=(?:.*[A-Z]){2,})[A-Za-z]+$"
+    },
+    {
+        "label": "ascii_with_required_symbols",
+        "regex_base64": "Xig/PS4qWy1fLl0pWyEtfl0rJA==",
+        "description": "ASCII字符串且包含必需符号：只允许ASCII可见字符，必须包含连字符、下划线或点，正则：^(?=.*[-_.])[!-~]+$"
+    },
+    {
+        "label": "strict_file_path",
+        "regex_base64": "Xig/OltBLVphLXpdOlxcKD86W15cXFwvOio/Ijw+fFxyXG5dK1xcKSpbXlxcXC86Kj8iPD58XHJcbl0qfCg/OlwvW15cL1wwXSspK1wvPykk",
+        "description": "严格文件路径：支持Windows与Unix风格文件路径，正则：^(?:[A-Za-z]:\\\\(?:[^\\\\\\/:*?\"<>|\\r\\n]+\\\\)*[^\\\\\\/:*?\"<>|\\r\\n]*|(?:\\/[^\\/\\0]+)+\\/?$"
+    },
+    {
+        "label": "loose_ascii_path",
+        "regex_base64": "XlxzKlsgLX5dKyg/OlwvWyAtfl0rKStccyok",
+        "description": "宽松ASCII路径：允许空格及各种符号，要求至少包含一个斜杠，正则：^\\s*[ -~]+(?:\\/[ -~]+)+\\s*$"
+    },
+    {
+        "label": "alphanum_with_colon",
+        "regex_base64": "XlxzKig/PVtcc1xTXSo6KVtBLVphLXowLTk6XC1cLlx7XH1cW1xdPVxzXStccyok",
+        "description": "包含英文冒号的英数字内容：仅允许字母、数字、空格和冒号，且至少包含一个冒号，正则："
+    },
+    {
+        "label": "specific_phrase",
+        "regex_base64": "Xig/PS4qKD86Y291bnQgbm90IG1hdGNofGZpbGUgcmVhZCBlcnJvcikpLiok",
+        "description": "特定语义匹配：必须包含 'count not match' 或 'file read error' 的字符串，正则：^(?=.*(?:count not match|file read error)).*$"
+    },
+    {
+        "label": "fullwidth_letters_punct_or_space",
         "regex_base64": "Xig/OltcdUZGMjEtXHVGRjNBXHVGRjQxLVx1RkY1QV18XHB7UH18W1x1MDAyMFx1MzAwMF0pKyQ=",
-        "description": "全角字母、符号、空格"
+        "description": "全角字母、标点或空格：仅匹配由全角字母、标点或空格构成的字符串，正则：^(?:[\\uFF21-\\uFF3A\\uFF41-\\uFF5A]|\\p{P}|[\\u0020\\u3000])+$"
+    },
+    {
+        "label": "match_all_regex",
+        "regex_base64": "XlwvKD86XFwufFteXC9cbl0pKlwvW2dpbXV5XSok",
+        "description": "匹配所有正则表达式"
     }
 ]
