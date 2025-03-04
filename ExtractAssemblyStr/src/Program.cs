@@ -11,6 +11,7 @@ using dnlib.DotNet.Emit;
 
 public class ExtractedString {
     public string Key { get; set; } = string.Empty;
+    public string AuxiliaryKey { get; set; } = string.Empty;
     public string OriginalText { get; set; } = string.Empty;
     public string Context { get; set; } = string.Empty;
     // 默认情况下，从 ldstr 指令提取的字符串不需要额外标记，只有特殊内容才需要标记
@@ -90,19 +91,31 @@ class Program {
                 if (!method.HasBody || method.Body?.Instructions == null)
                     continue;
                 var instructions = method.Body.Instructions;
+                // 为每个方法维护 ldstr 指令的序号计数器和映射表
+                int ldstrIndex = 0;
+                Dictionary<Instruction, string> ldstrKeyMap = new Dictionary<Instruction, string>();
+
                 for (int i = 0; i < instructions.Count; i++) {
                     var instr = instructions[i];
                     
                     // 提取所有 ldstr 指令的字符串
                     if (instr.OpCode.Code == Code.Ldstr && instr.Operand is string text && !string.IsNullOrEmpty(text)) {
+                        // 先标准化换行符
+                        string normalizedText = NormalizeNewlines(text);
+                        // 使用新逻辑生成主 Key 和辅助 Key
+                        string primaryKey = KeyGenerator.GeneratePrimaryKey(type.Name, method.Name, ldstrIndex);
+                        string auxiliaryKey = KeyGenerator.GenerateAuxiliaryKey(normalizedText);
+                        ldstrKeyMap[instr] = primaryKey;
+                        ldstrIndex++;
+
                         string context = method.FullName;
-                        string key = GenerateKey(context, text);
-                        if (!extractedStrings.ContainsKey(key)) {
+                        if (!extractedStrings.ContainsKey(primaryKey)) {
                             // 默认情况下，不需要额外标记
                             bool needsLabel = false;
                             var newRecord = new ExtractedString {
-                                Key = key,
-                                OriginalText = text,
+                                Key = primaryKey,
+                                AuxiliaryKey = auxiliaryKey,
+                                OriginalText = normalizedText,
                                 Context = context,
                                 NeedsLabel = needsLabel
                             };
@@ -112,7 +125,7 @@ class Program {
                                 newRecord.Labels.Add("from_scene_idenum");
                             }
 
-                            extractedStrings.Add(key, newRecord);
+                            extractedStrings.Add(primaryKey, newRecord);
                         }
                     }
                     
@@ -127,12 +140,23 @@ class Program {
                             for (int j = start; j < i; j++) {
                                 var prevInstr = instructions[j];
                                 if (prevInstr.OpCode.Code == Code.Ldstr && prevInstr.Operand is string cmpText && !string.IsNullOrEmpty(cmpText)) {
-                                    string cmpContext = $"{method.FullName} [用于字符串比较]";
-                                    string cmpKey = GenerateKey(cmpContext, cmpText);
+                                    // 标准化换行符
+                                    string normalizedCmpText = NormalizeNewlines(cmpText);
+                                    // 尝试从映射表中获取主 Key
+                                    string cmpKey = "";
+                                    if (!ldstrKeyMap.TryGetValue(prevInstr, out cmpKey)) {
+                                        // 若未记录，则生成一个新的主 Key
+                                        cmpKey = KeyGenerator.GeneratePrimaryKey(type.Name, method.Name, ldstrIndex);
+                                        ldstrKeyMap[prevInstr] = cmpKey;
+                                        ldstrIndex++;
+                                    }
+                                    string cmpAuxiliaryKey = KeyGenerator.GenerateAuxiliaryKey(normalizedCmpText);
+                                    string cmpContext = $"{method.FullName} [comparing strings]";
                                     if (!comparisonStrings.ContainsKey(cmpKey)) {
                                         comparisonStrings.Add(cmpKey, new ExtractedString {
                                             Key = cmpKey,
-                                            OriginalText = cmpText,
+                                            AuxiliaryKey = cmpAuxiliaryKey,
+                                            OriginalText = normalizedCmpText,
                                             Context = cmpContext,
                                             // 对于用于比较的字符串，需要额外标记
                                             NeedsLabel = true
@@ -166,6 +190,13 @@ class Program {
         WriteCsv("sddt_0.00_la_Assembly-CSharp.csv", finalRecords, comparisonStrings, jsonPath);
     }
 
+    // 新增：用于标准化换行符的方法，将文本中的换行符转换为 "\n"
+    static string NormalizeNewlines(string text) {
+        if (string.IsNullOrEmpty(text))
+            return text;
+        return text.Replace("\r\n", "\n").Replace("\r", "\n");
+    }
+
     // 写入 CSV 文件的方法，增加参数 jsonPath 用于加载外部 JSON 文件
     static void WriteCsv(string fileName, List<ExtractedString> records, Dictionary<string, ExtractedString> comparisonDict, string jsonPath) {
         try {
@@ -179,8 +210,8 @@ class Program {
             }
 
             StringBuilder sb = new StringBuilder();
-            // CSV 头部（所有字段均加双引号）
-            sb.AppendLine($"{EscapeCsv("Key")},{EscapeCsv("Source_string")},{EscapeCsv("Translation")},{EscapeCsv("Context")},{EscapeCsv("Labels")}");
+            // CSV 头部（所有字段均加双引号），新增辅助 Key 列
+            sb.AppendLine($"{EscapeCsv("Key")},{EscapeCsv("Source_string")},{EscapeCsv("Translation")},{EscapeCsv("Context")},{EscapeCsv("Labels")},{EscapeCsv("AuxiliaryKey")}");
             foreach (var record in records) {
                 // 默认翻译内容为空
                 string translation = "";
@@ -202,12 +233,13 @@ class Program {
                 
                 string labelsStr = string.Join(";", labels);
                 
-                string line = string.Format("{0},{1},{2},{3},{4}",
+                string line = string.Format("{0},{1},{2},{3},{4},{5}",
                     EscapeCsv(record.Key),
                     EscapeCsv(record.OriginalText),
                     EscapeCsv(translation),
                     EscapeCsv(record.Context),
-                    EscapeCsv(labelsStr)
+                    EscapeCsv(labelsStr),
+                    EscapeCsv(record.AuxiliaryKey)
                 );
                 sb.AppendLine(line);
             }
@@ -226,15 +258,25 @@ class Program {
         return $"\"{field.Replace("\"", "\"\"")}\"";
     }
 
-    // 生成稳定唯一的 Key（使用方法全名和字符串内容生成 SHA1 哈希）
-    static string GenerateKey(string context, string text) {
-        string input = $"{context}:{text}";
-        using (SHA1 sha1 = SHA1.Create()) {
-            byte[] hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in hashBytes)
-                sb.Append(b.ToString("x2"));
-            return sb.ToString();
+    public static class KeyGenerator {
+        /// <summary>
+        /// 生成 主 Key（类型 + 方法 + 字符串序号）
+        /// </summary>
+        public static string GeneratePrimaryKey(string className, string methodName, int index) {
+            return $"{className}::{methodName}:{index}";
+        }
+
+        /// <summary>
+        /// 生成 辅助 Key（原始字符串的 SHA1 哈希）
+        /// </summary>
+        public static string GenerateAuxiliaryKey(string text) {
+            using (SHA1 sha1 = SHA1.Create()) {
+                byte[] hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(text));
+                StringBuilder sb = new StringBuilder();
+                foreach (byte b in hashBytes)
+                    sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
         }
     }
 }
