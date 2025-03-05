@@ -40,7 +40,7 @@ public class RegexRule {
 class Program {
     static void Main(string[] args) {
         string dllPath = null;
-        string jsonPath = "regex_base64.json"; // 默认 JSON 文件名
+        string regexPath = "regex_base64.json"; // 默认 JSON 文件名
         bool enableOngeki = false;             // 是否启用“Scene\d+IDEnum”匹配
 
         // 遍历命令行参数
@@ -50,9 +50,9 @@ class Program {
                     dllPath = args[i + 1];
                 }
             }
-            else if (args[i].Equals("-json", StringComparison.OrdinalIgnoreCase)) {
+            else if (args[i].Equals("-regex", StringComparison.OrdinalIgnoreCase)) {
                 if (i + 1 < args.Length) {
-                    jsonPath = args[i + 1];
+                    regexPath = args[i + 1];
                 }
             }
             else if (args[i].Equals("-ongeki", StringComparison.OrdinalIgnoreCase)) {
@@ -61,7 +61,7 @@ class Program {
         }
 
         if (string.IsNullOrEmpty(dllPath)) {
-            Console.WriteLine("Usage: ExtractStrings -dll <path_to_Assembly-CSharp.dll> [-json <path_to_regex_json>] [-ongeki]");
+            Console.WriteLine("Usage: ExtractStrings -dll <path_to_Assembly-CSharp.dll> [-regex <path_to_regex_json>] [-ongeki]");
             return;
         }
         
@@ -187,7 +187,7 @@ class Program {
         List<ExtractedString> finalRecords = uniqueRecords.Values.ToList();
 
         // 生成 CSV 文件
-        WriteCsv("sddt_0.00_la_Assembly-CSharp.csv", finalRecords, comparisonStrings, jsonPath);
+        WriteCsv("sddt_0.00_la_Assembly-CSharp.csv", finalRecords, comparisonStrings, regexPath);
     }
 
     // 新增：用于标准化换行符的方法，将文本中的换行符转换为 "\n"
@@ -197,16 +197,16 @@ class Program {
         return text.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
-    // 写入 CSV 文件的方法，增加参数 jsonPath 用于加载外部 JSON 文件
-    static void WriteCsv(string fileName, List<ExtractedString> records, Dictionary<string, ExtractedString> comparisonDict, string jsonPath) {
+    // 写入 CSV 文件的方法，增加参数 regexPath 用于加载外部 JSON 文件
+    static void WriteCsv(string fileName, List<ExtractedString> records, Dictionary<string, ExtractedString> comparisonDict, string regexPath) {
         try {
             // 加载外部 JSON 中配置的正则规则
             List<RegexRule> regexRules = new List<RegexRule>();
-            if (File.Exists(jsonPath)) {
-                string json = File.ReadAllText(jsonPath);
+            if (File.Exists(regexPath)) {
+                string json = File.ReadAllText(regexPath);
                 regexRules = JsonSerializer.Deserialize<List<RegexRule>>(json) ?? new List<RegexRule>();
             } else {
-                Console.WriteLine($"未找到正则规则文件: {jsonPath}");
+                Console.WriteLine($"未找到正则规则文件: {regexPath}");
             }
 
             StringBuilder sb = new StringBuilder();
